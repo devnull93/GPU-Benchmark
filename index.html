@@ -2,598 +2,252 @@
 <html lang="en">
 <head>
    <meta charset="UTF-8">
-   <title>Battery Monitor</title>
-   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap">
+   <title>VolumeShader BM Part 2</title>
    <style>
       * {
          margin: 0;
          padding: 0;
-         box-sizing: border-box;
-         font-family: "Inter", sans-serif;
-      }
-
-      :root {
-         --bg-dark: #0F172A;
-         --bg-panel: #1E293B;
-         --border-light: #334155;
-         --full-green: #10B981;
-         --high-yellow: #EAB308;
-         --medium-orange: #F97316;
-         --low-red: #EF4444;
-         --critical-red: #DC2626;
-         --glow-green: rgba(16, 185, 129, 0.5);
-         --glow-yellow: rgba(234, 179, 8, 0.5);
-         --glow-orange: rgba(249, 115, 22, 0.5);
-         --glow-red: rgba(239, 68, 68, 0.5);
-         --text-primary: #F8FAFC;
-         --text-secondary: #94A3B8;
-         --battery-border: #CBD5E1;
-      }
-
-      body {
-         background: var(--bg-dark);
-         color: var(--text-primary);
-         min-height: 100vh;
-         padding: 2rem 1rem;
-         display: flex;
-         flex-direction: column;
-         align-items: center;
-         justify-content: center;
-      }
-
-      .container {
-         max-width: 500px;
-         width: 100%;
-         display: flex;
-         flex-direction: column;
-         gap: 2rem;
-      }
-
-      header {
-         text-align: center;
-         padding-bottom: 1rem;
-         border-bottom: 1px solid var(--border-light);
-      }
-
-      header h1 {
-         font-size: 2.2rem;
-         margin-bottom: 0.5rem;
-         background: linear-gradient(90deg, var(--full-green), var(--high-yellow), var(--medium-orange), var(--low-red));
-         -webkit-background-clip: text;
-         background-clip: text;
-         color: transparent;
-      }
-
-      header p {
-         color: var(--text-secondary);
-         font-size: 1.1rem;
-      }
-
-      .api-status {
-         background: rgba(59, 130, 246, 0.1);
-         border: 1px solid #3B82F6;
-         border-radius: 8px;
-         padding: 1rem;
-         text-align: center;
-         color: #3B82F6;
-         display: none;
-      }
-
-      .api-status.active {
-         display: block;
-      }
-
-      .api-status.unsupported {
-         background: rgba(249, 115, 22, 0.1);
-         border: 1px solid var(--medium-orange);
-         color: var(--medium-orange);
-      }
-
-      .battery-display {
-         background: var(--bg-panel);
-         border: 1px solid var(--border-light);
-         border-radius: 20px;
-         padding: 2.5rem 2rem;
-         display: flex;
-         flex-direction: column;
-         align-items: center;
-         gap: 2rem;
-         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
-         position: relative;
-      }
-
-      .battery-container {
-         position: relative;
-         display: flex;
-         flex-direction: column;
-         align-items: center;
-      }
-
-      .battery-cap {
-         width: 60px;
-         height: 20px;
-         background: var(--battery-border);
-         border-radius: 4px 4px 0 0;
-         margin-bottom: -1px;
-         border: 2px solid var(--battery-border);
-         border-bottom: none;
-      }
-
-      .battery-shell {
-         width: 200px;
-         height: 320px;
-         border: 2px solid var(--battery-border);
-         border-radius: 8px 8px 12px 12px;
-         background: rgba(30, 41, 59, 0.8);
-         position: relative;
          overflow: hidden;
-         display: flex;
-         align-items: flex-end;
-         justify-content: center;
-         align-items: center;
+         background: #000;
       }
 
-      .battery-fill {
-         width: 100%;
-         height: 100%;
-         transition: all 0.8s ease-in-out;
-         position: absolute;
-         bottom: 0;
-         left: 0;
-      }
-
-      .battery-content {
-         position: absolute;
-         top: 50%;
-         left: 50%;
-         transform: translate(-50%,-50%);
-         z-index: 10;
-         text-align: center;
-      }
-
-      .battery-level {
-         font-size: 3.5rem;
-         font-weight: 700;
-         color: rgba(255, 255, 255, 0.9);
-         text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
-         padding: 0.2rem 1rem;
-         border-radius: 8px;
-         background: rgba(0, 0, 0, 0.3);
-      }
-
-      .warning-icon {
-         font-size: 5rem;
-         color: rgba(255, 255, 255, 0.9);
-         text-shadow: 0 0 20px var(--glow-red);
-         display: none;
-         padding: 0.2rem 1rem;
-         border-radius: 8px;
-         background: rgba(0, 0, 0, 0.3);
-      }
-
-      .warning-icon.active {
+      canvas {
          display: block;
-      }
-
-      .status-container {
-         display: flex;
-         flex-direction: column;
-         align-items: center;
-         gap: 1rem;
-         width: 100%;
-      }
-
-      .status-badge {
-         padding: 0.8rem 2rem;
-         border-radius: 25px;
-         font-size: 1.1rem;
-         font-weight: 600;
-         text-align: center;
-         min-width: 200px;
-         transition: all 0.3s ease;
-      }
-
-      .status-low {
-         background: rgba(239, 68, 68, 0.2);
-         color: var(--low-red);
-         border: 1px solid var(--low-red);
-         box-shadow: 0 0 10px var(--glow-red);
-      }
-
-      .status-charging {
-         background: rgba(16, 185, 129, 0.2);
-         color: var(--full-green);
-         border: 1px solid var(--full-green);
-         box-shadow: 0 0 10px var(--glow-green);
-      }
-
-      .status-full {
-         background: rgba(16, 185, 129, 0.2);
-         color: var(--full-green);
-         border: 1px solid var(--full-green);
-         box-shadow: 0 0 10px var(--glow-green);
-      }
-
-      .status-normal {
-         background: rgba(51, 65, 85, 0.2);
-         color: var(--text-primary);
-         border: 1px solid var(--border-light);
-      }
-
-      .extra-details {
-         display: grid;
-         grid-template-columns: repeat(2, 1fr);
-         gap: 1rem;
-         width: 100%;
-         margin-top: 1rem;
-         background: rgba(30, 41, 59, 0.5);
-         border-radius: 12px;
-         padding: 1rem;
-      }
-
-      .detail-item {
-         text-align: center;
-      }
-
-      .detail-label {
-         font-size: 0.9rem;
-         color: var(--text-secondary);
-         margin-bottom: 0.5rem;
-      }
-
-      .detail-value {
-         font-size: 1rem;
-         font-weight: 600;
-      }
-
-      .controls {
-         display: grid;
-         grid-template-columns: repeat(2, 1fr);
-         gap: 1rem;
-         width: 100%;
-         margin-top: 1rem;
-      }
-
-      .btn {
-         padding: 1rem;
-         border: none;
-         border-radius: 12px;
-         font-size: 1rem;
-         font-weight: 600;
-         cursor: pointer;
-         transition: all 0.3s ease;
-         background: var(--bg-panel);
-         border: 1px solid var(--border-light);
-         color: var(--text-primary);
-      }
-
-      .btn:hover {
-         transform: translateY(-2px);
-         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-      }
-
-      .btn-charge {
-         border-color: var(--full-green);
-         color: var(--full-green);
-      }
-
-      .btn-drain {
-         border-color: var(--low-red);
-         color: var(--low-red);
-      }
-
-      .fill-green {
-         background: linear-gradient(to top, var(--full-green), #15803D);
-         box-shadow: inset 0 0 15px var(--glow-green);
-      }
-
-      .fill-yellow {
-         background: linear-gradient(to top, var(--high-yellow), #CA8A04);
-         box-shadow: inset 0 0 15px var(--glow-yellow);
-      }
-
-      .fill-orange {
-         background: linear-gradient(to top, var(--medium-orange), #EA580C);
-         box-shadow: inset 0 0 15px var(--glow-orange);
-      }
-
-      .fill-red {
-         background: linear-gradient(to top, var(--low-red), #B91C1C);
-         box-shadow: inset 0 0 15px var(--glow-red);
-      }
-
-      .fill-critical {
-         background: linear-gradient(to top, var(--critical-red), #991B1B);
-         box-shadow: inset 0 0 20px var(--glow-red);
-      }
-
-      @media (max-width: 400px) {
-         .battery-shell {
-            width: 160px;
-            height: 260px;
-         }
-
-         .battery-cap {
-            width: 50px;
-            height: 18px;
-         }
-
-         .battery-level {
-            font-size: 2.8rem;
-         }
-
-         .warning-icon {
-            font-size: 4rem;
-         }
-
-         header h1 {
-            font-size: 1.8rem;
-         }
-
-         .extra-details {
-            grid-template-columns: 1fr;
-         }
+         width: 100vw;
+         height: 100vh;
       }
    </style>
 </head>
 <body>
-   <div class="container">
-      <header>
-         <h1>BATTERY MONITOR</h1>
-         <p>Live data from your device's battery</p>
-      </header>
-
-      <div class="api-status" id="api-status">
-         <span id="api-message">Fetching battery data...</span>
-      </div>
-
-      <div class="battery-display">
-         <div class="battery-container">
-            <div class="battery-cap"></div>
-            <div class="battery-shell">
-               <div class="battery-fill fill-green" id="battery-fill"></div>
-
-               <div class="battery-content">
-                  <div class="battery-level" id="battery-level">100%</div>
-                  <div class="warning-icon" id="warning-icon">⚠</div>
-               </div>
-             </div>
-         </div>
-
-         <div class="status-container">
-            <div class="status-badge status-full" id="status-badge">FULLY CHARGED</div>
-            <div class="status-text" id="status-text">Battery at maximum capacity</div>
-
-            <div class="extra-details" id="extra-details">
-               <div class="detail-item">
-                  <div class="detail-label">CHARGING STATUS</div>
-                  <div class="detail-value" id="charging-status">No</div>
-               </div>
-               <div class="detail-item">
-                  <div class="detail-label">EST. TIME LEFT</div>
-                  <div class="detail-value" id="time-left">Unknown</div>
-               </div>
-               <div class="detail-item">
-                  <div class="detail-label">BATTERY HEALTH</div>
-                  <div class="detail-value" id="battery-health">Good</div>
-               </div>
-               <div class="detail-item">
-                  <div class="detail-label">API SUPPORT</div>
-                  <div class="detail-value" id="api-support">Yes</div>
-               </div>
-            </div>
-         </div>
-
-         <div class="controls" id="simulation-controls" style="display:none;">
-            <button class="btn btn-charge" id="charge-btn">CHARGE BATTERY</button>
-            <button class="btn btn-drain" id="drain-btn">DRAIN BATTERY</button>
-         </div>
-      </div>
-   </div>
+   <canvas id="glCanvas"></canvas>
 
    <script>
-      const batteryFill = document.getElementById("battery-fill");
-      const batteryLevel = document.getElementById("battery-level");
-      const warningIcon = document.getElementById("warning-icon");
-      const statusBadge = document.getElementById("status-badge");
-      const statusText = document.getElementById("status-text");
-      const chargingStatus = document.getElementById("charging-status");
-      const timeLeft = document.getElementById("time-left");
-      const batteryHealth = document.getElementById("battery-health");
-      const apiSupport = document.getElementById("api-support");
-      const apiStatus = document.getElementById("api-status");
-      const apiMessage = document.getElementById("api-message");
-      const extraDetails = document.getElementById("extra-details");
-      const simulationControls = document.getElementById("simulation-controls");
-      const chargeBtn = document.getElementById("charge-btn");
-      const drainBtn = document.getElementById("drain-btn");
-      let currentLevel = 100;
-      //let isCharging = false;
-      let batteryAPI = null;
+      const vsSource = `
+          attribute vec2 a_position;
+          varying vec2 v_uv;
+          void main() {
+               v_uv = a_position * 0.5 + 0.5;
+               gl_Position = vec4(a_position, 0.0, 1.0);
+          }
+      `;
 
-      function formatTime(seconds) {
-         if (isNaN(seconds)) return "Unknown";
-         if (seconds === Infinity) return "Calculating...";
+      const fsSource = `
+          precision highp float;
 
-         const hours = Math.floor(seconds / 3600);
-         const mins = Math.floor((seconds % 3600) / 60);
+          varying vec2 v_uv;
+          uniform vec2 u_resolution;
+          uniform float u_time;
 
-         if (hours > 0) return `${hours}h ${mins}m`;
-         return `${mins}m`;
+          #define POWER 8.0
+          #define MANDEL_ITER 20
+          #define MAX_STEPS 100
+          #define MAX_DIST 30.0
+          #define SURF_DIST 0.0008
+
+          vec2 mandelbulb(vec3 p) {
+               vec3 z = p;
+               float dr = 1.0;
+               float r = 0.0;
+               for (int i = 0; i < MANDEL_ITER; i++) {
+                    r = length(z);
+                    if (r > 2.0) break;
+
+                    float theta = acos(z.z / r);
+                    float phi = atan(z.y, z.x);
+                    dr = pow(r, POWER - 1.0) * POWER * dr + 1.0;
+
+                    float zr = pow(r, POWER);
+                    z = zr * vec3(
+                        sin(theta * POWER) * cos(phi * POWER),
+                        sin(theta * POWER) * sin(phi * POWER),
+                        cos(theta * POWER)
+                    ) + p;
+               }
+               return vec2(0.5 * log(r) * r / dr, r);
+          }
+
+          float getDist(vec3 p) {
+               return mandelbulb(p).x;
+          }
+
+          vec2 rayMarch(vec3 ro, vec3 rd) {
+               float d = 0.0;
+               for (int i = 0; i < MAX_STEPS; i++) {
+                    vec3 p = ro + rd * d;
+                    float dS = getDist(p);
+                    d += dS;
+                    if (d > MAX_DIST || abs(dS) < SURF_DIST) break;
+               }
+               return vec2(d, abs(getDist(ro + rd * d)) < SURF_DIST ? d : -1.0);
+          }
+
+          vec3 getNormal(vec3 p) {
+               const float e = 0.0005;
+               vec2 e2 = vec2(e, 0.0);
+               return normalize(vec3(
+                    getDist(p + e2.xyy) - getDist(p - e2.xyy),
+                    getDist(p + e2.yxy) - getDist(p - e2.yxy),
+                    getDist(p + e2.yyx) - getDist(p - e2.yyx)
+               ));
+          }
+
+          float softShadow(vec3 ro, vec3 rd, float mint, float maxt, float k) {
+               float res = 1.0;
+               float t = mint;
+               for (int i = 0; i < 32; i++) {
+                    vec3 p = ro + rd * t;
+                    float d = getDist(p);
+                    res = min(res, k * d / t);
+                    t += max(d * 0.5, 0.01);
+                    if (d < 0.0001 || t > maxt) break;
+               }
+               return clamp(res, 0.0, 1.0);
+          }
+
+          float calcAO(vec3 p, vec3 n) {
+               float occ = 0.0;
+               float sca = 1.0;
+               for (int i = 0; i < 6; i++) {
+                    float hr = 0.015 + 0.05 * float(i);
+                    float d = getDist(p + n * hr);
+                    occ += (hr - d) * sca;
+                    sca *= 0.5;
+               }
+               return clamp(1.0 - occ * 2.5, 0.0, 1.0);
+          }
+
+          vec3 hsl2rgb(float h, float s, float l) {
+               vec3 c = vec3(h, s, l);
+               c.x = fract(c.x);
+               vec3 K = vec3(1.0, 2.0 / 3.0, 1.0 / 3.0);
+               vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.zzz * 3.0);
+               return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+          }
+
+          void main() {
+               vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+
+               float camDist = 3.0;
+               float angle = u_time * 0.15;
+               vec3 ro = vec3(sin(angle) * camDist, 0.45, cos(angle) * camDist);
+               vec3 target = vec3(0.0, 0.0, 0.0);
+
+               vec3 forward = normalize(target - ro);
+               vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), forward));
+               vec3 up = cross(forward, right);
+               vec3 rd = normalize(forward + uv.x * right + uv.y * up);
+
+               vec2 rm = rayMarch(ro, rd);
+               float d = rm.x;
+               bool hit = rm.y > 0.0;
+
+               vec3 col = vec3(0.015, 0.018, 0.025);
+
+               if (hit) {
+                   vec3 p = ro + rd * d;
+                   vec3 n = getNormal(p);
+
+                   vec3 lightDir = normalize(vec3(sin(u_time * 0.4), 0.8, cos(u_time * 0.4)));
+                   vec3 lightPos = p + lightDir;
+
+                   float diff = max(dot(n, lightDir), 0.0);
+                   float spec = pow(max(dot(reflect(-lightDir, n), -rd), 0.0), 64.0);
+
+                   float r = mandelbulb(p).y;
+                   vec3 baseCol = hsl2rgb(r * 0.35 + 0.05, 0.75, 0.42 + sin(r * 10.0) * 0.08);
+
+                   float shadow = softShadow(p, lightDir, 0.002, 2.5, 12.0);
+                   float ao = calcAO(p, n);
+
+                   col = baseCol * 0.18;
+                   col += baseCol * diff * shadow * 0.75;
+                   col += vec3(1.0) * spec * shadow * 0.35;
+                   col *= ao;
+
+                   col = mix(col, vec3(0.015, 0.018, 0.025), 1.0 - exp(-d * 0.8));
+               }
+
+               col = pow(col, vec3(0.4545));
+
+               gl_FragColor = vec4(col, 1.0);
+          }
+      `;
+
+      const canvas = document.getElementById("glCanvas");
+      const gfx = canvas.getContext("webgl");
+
+      function createShader(type, source) {
+         const shader = gfx.createShader(type);
+         gfx.shaderSource(shader, source);
+         gfx.compileShader(shader);
+         if (!gfx.getShaderParameter(shader, gfx.COMPILE_STATUS)) {
+             console.error(gfx.getShaderInfoLog(shader));
+             gfx.deleteShader(shader);
+             return null;
+         }
+         return shader;
       }
 
-      function updateBattery(level, charging, dischargingTime, chargingTime) {
-         const percent = Math.round(level * 100);
-         batteryFill.style.height = `${percent}%`;
-         batteryLevel.textContent = `${percent}%`;
+      const vertexShader = createShader(gfx.VERTEX_SHADER, vsSource);
+      const fragmentShader = createShader(gfx.FRAGMENT_SHADER, fsSource);
 
-         if (percent >= 100) {
-             setBatteryClass("fill-green");
-             setStatus("FULLY CHARGED", "status-full", "Battery at maximum capacity");
-             warningIcon.classList.remove("active");
-             batteryLevel.style.display = "block";
-         } else if (percent > 75) {
-             setBatteryClass("fill-green");
-             setStatus("BATTERY HIGH", "status-normal", "Battery level is good");
-             warningIcon.classList.remove("active");
-             batteryLevel.style.display = "block";
-         } else if (percent > 50) {
-             setBatteryClass("fill-yellow");
-             setStatus("BATTERY MEDIUM", "status-normal", "Battery level is moderate");
-             warningIcon.classList.remove("active");
-             batteryLevel.style.display = "block";
-         } else if (percent > 20) {
-             setBatteryClass("fill-orange");
-             setStatus("BATTERY LOW", "status-normal", "Consider charging your device");
-             warningIcon.classList.remove("active");
-             batteryLevel.style.display = "block";
-         } else if (percent > 5) {
-             setBatteryClass("fill-red");
-             setStatus("LOW BATTERY", "status-low", "Charge soon to avoid shutdown");
-             warningIcon.classList.remove("active");
-             batteryLevel.style.display = "block";
-         } else {
-             setBatteryClass("fill-critical");
-             setStatus("CRITICAL BATTERY", "status-low", "Device will shut down soon!");
-             warningIcon.classList.add("active");
-             batteryLevel.style.display = "none";
+      const program = gfx.createProgram();
+      gfx.attachShader(program, vertexShader);
+      gfx.attachShader(program, fragmentShader);
+      gfx.linkProgram(program);
+
+      if (!gfx.getProgramParameter(program, gfx.LINK_STATUS)) {
+          console.error(gfx.getProgramInfoLog(program));
+      }
+
+      gfx.useProgram(program);
+
+      const positionBuffer = gfx.createBuffer();
+      gfx.bindBuffer(gfx.ARRAY_BUFFER, positionBuffer);
+      gfx.bufferData(gfx.ARRAY_BUFFER, new Float32Array([
+          -1, -1, 1, -1, -1, 1,
+          -1, 1, 1, -1, 1, 1
+      ]), gfx.STATIC_DRAW);
+
+      const a_position = gfx.getAttribLocation(program, "a_position");
+      gfx.enableVertexAttribArray(a_position);
+      gfx.vertexAttribPointer(a_position, 2, gfx.FLOAT, false, 0, 0);
+
+      const u_resolution = gfx.getUniformLocation(program, "u_resolution");
+      const u_time = gfx.getUniformLocation(program, "u_time");
+
+      function resize() {
+         const scale = Math.min(2.0, window.devicePixelRatio);
+         canvas.width = Math.floor(window.innerWidth * scale);
+         canvas.height = Math.floor(window.innerHeight * scale);
+         gfx.viewport(0, 0, canvas.width, canvas.height);
+      }
+
+      window.addEventListener("resize", resize);
+      resize();
+
+      let lastTime = performance.now();
+      let frames = 0;
+      let fps = 0;
+
+      function render(time) {
+         time *= 0.001;
+
+         frames++;
+         if (performance.now() - lastTime >= 1000) {
+             fps = frames;
+             frames = 0;
+             lastTime = performance.now();
          }
 
-         chargingStatus.textContent = charging ? "Yes" : "No";
+         gfx.uniform2f(u_resolution, canvas.width, canvas.height);
+         gfx.uniform1f(u_time, time);
+         gfx.drawArrays(gfx.TRIANGLES, 0, 6);
 
-         if (charging) {
-             timeLeft.textContent = chargingTime > 0 ? `Full in ${formatTime(chargingTime)}` : "Almost Full";
-             setStatus("CHARGING", "status-charging", `Current level: ${percent}%`);
-         } else {
-             timeLeft.textContent = formatTime(dischargingTime);
-         }
-
-         if (batteryAPI?.chargingThreshold !== undefined) {
-             batteryHealth.textContent = batteryAPI.chargingThreshold >= 95 ? "Excellent" : "Good";
-         } else {
-             batteryHealth.textContent = "Good";
-         }
+         requestAnimationFrame(render);
       }
 
-      function setBatteryClass(className) {
-         batteryFill.classList.remove("fill-green", "fill-yellow", "fill-orange", "fill-red", "fill-critical");
-         batteryFill.classList.add(className);
-      }
-
-      function setStatus(badgeText, badgeClass, description) {
-         statusBadge.textContent = badgeText;
-         statusBadge.classList.remove("status-low", "status-charging", "status-full", "status-normal");
-         statusBadge.classList.add(badgeClass);
-         statusText.textContent = description;
-      }
-
-      function initBatteryAPI() {
-         if ("getBattery" in navigator) {
-             apiStatus.classList.add("active");
-             apiMessage.textContent = "Battery API supported - fetching live data...";
-             apiSupport.textContent = "Yes";
-
-             navigator.getBattery().then(battery => {
-                  batteryAPI = battery;
-
-                  updateBattery(
-                      battery.level,
-                      battery.charging,
-                      battery.dischargingTime,
-                      battery.chargingTime
-                  );
-
-                  battery.addEventListener("levelchange", () => {
-                      updateBattery(
-                          battery.level,
-                          battery.charging,
-                          battery.dischargingTime,
-                          battery.chargingTime
-                      );
-                  });
-
-                  battery.addEventListener("chargingchange", () => {
-                      updateBattery(
-                          battery.level,
-                          battery.charging,
-                          battery.dischargingTime,
-                          battery.chargingTime
-                      );
-                  });
-
-                  battery.addEventListener("dischargingtimechange", () => {
-                      updateBattery(
-                          battery.level,
-                          battery.charging,
-                          battery.dischargingTime,
-                          battery.chargingTime
-                      );
-                  });
-
-                  battery.addEventListener("chargingtimechange", () => {
-                      updateBattery(
-                          battery.level,
-                          battery.charging,
-                          battery.dischargingTime,
-                          battery.chargingTime
-                      );
-                  });
-
-                  apiStatus.classList.remove("active");
-             }).catch(err => {
-                  apiStatus.classList.add("active", "unsupported");
-                  apiMessage.textContent = `Error accessing battery data: ${err.message} - falling back to simulation`;
-                  startSimulation();
-             });
-         } else {
-              apiStatus.classList.add("active", "unsupported");
-              apiMessage.textContent = "Battery API not supported on this device/browser - using simulation";
-              apiSupport.textContent = "No";
-              startSimulation();
-         }
-      }
-
-      function startSimulation() {
-         extraDetails.style.display = "none";
-         simulationControls.style.display = "grid";
-         currentLevel = 25;
-         updateBattery(currentLevel / 100, false, 7200, 0);
-      }
-
-      function chargeBattery() {
-         if (currentLevel >= 100) return;
-
-         //isCharging = true;
-         const chargeInterval = setInterval(() => {
-            if (currentLevel < 100) {
-                currentLevel += 1;
-                updateBattery(currentLevel / 100, true, 0, (100 - currentLevel) * 15);
-            } else {
-                clearInterval(chargeInterval);
-                //isCharging = false;
-            }
-         }, 150);
-      }
-
-      function drainBattery() {
-         if (currentLevel <= 0) return;
-
-         //isCharging = false;
-         const drainInterval = setInterval(() => {
-            if (currentLevel > 0) {
-                currentLevel -= 1;
-                updateBattery(currentLevel / 100, false, currentLevel * 120, 0);
-            } else {
-                clearInterval(drainInterval);
-                setStatus("DEVICE SHUT DOWN", "status-low", "Battery completely drained");
-            }
-         }, 150);
-      }
-
-      chargeBtn.addEventListener("click", chargeBattery);
-      drainBtn.addEventListener("click", drainBattery);
-
-      initBatteryAPI();
+      render(0);
    </script>
 </body>
 </html>
